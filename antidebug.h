@@ -1,9 +1,8 @@
 #pragma once
 
-#include <array>
 #include <vector>
 #include <mutex>
-#include <string>
+#include <string_view>
 
 #include <ftxui/component/component.hpp>
 #define NOMINMAX
@@ -21,7 +20,7 @@ namespace AntiDebug
 	{
 		using AntiDebugCallback = std::function<void(AntiDebugOption&)>;
 
-		std::string name;
+		std::string_view name;
 		bool enabled;
 		bool detected;
 		bool was_enabled;
@@ -30,8 +29,8 @@ namespace AntiDebug
 		std::chrono::milliseconds elapsed_time;
 		AntiDebugCallback callback;
 
-		AntiDebugOption(const std::string_view& n, bool e, AntiDebugCallback c, std::chrono::milliseconds delay = std::chrono::milliseconds(0))
-			: name(n), enabled(e), callback(c), detected(false), was_enabled(e), delay(delay)
+		AntiDebugOption(std::string_view n, bool e, AntiDebugCallback c, std::chrono::milliseconds delay = std::chrono::milliseconds(0))
+			: name(n), enabled(e), callback(c), detected(false), was_enabled(e), delay(delay), elapsed_time(0)
 		{}
 	};
 
@@ -63,4 +62,5 @@ namespace AntiDebug
 	void callbackCloseHandle(AntiDebugOption& option);
 	void callbackDbgPrint(AntiDebugOption& option);
 	void callbackEnumDeviceDrivers(AntiDebugOption& option);
+	void callbackCyclesPassed(AntiDebugOption& option);
 }

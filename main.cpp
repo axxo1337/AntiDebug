@@ -1,4 +1,4 @@
-﻿#include <thread>
+#include <thread>
 #include <chrono>
 #include <array>
 #include <iostream>
@@ -10,7 +10,7 @@ int main()
 {
     SetConsoleTitleA("AntiDebug");
 
-    std::thread ui_thread([] { UI::routine(); });
+    std::thread ui_thread(UI::routine);
     auto& options{ AntiDebug::getOptions() };
 
     while (UI::running)

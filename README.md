@@ -120,6 +120,10 @@ after startup they aren't.
 
 `EnumDeviceDrivers` just enumerates the different loaded device drivers. Debuggers can be detected by looking for signed debugger-related kernel drivers such as `dbk64.sys` used for DBVM.
 
+### `CyclesPassed`
+
+`CyclesPassed` uses MSVC intrinsics to check if the CPU cycles delta between function's prologue and epilogue was abnormally huge. If such a thing happend more than or equal 3 times then it assumes that there was a breakpoint set inside it.
+
 ## Contributing
 
 This project is free and open source and will remain so forever. You are welcome to contribute. Simply make a pull request for whatever it is you would like to add, but

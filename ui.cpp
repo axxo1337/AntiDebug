@@ -1,4 +1,4 @@
-﻿#include <mutex>
+#include <mutex>
 
 #include "ui.h"
 
@@ -26,7 +26,7 @@ void UI::routine()
     {
         std::lock_guard<std::mutex> guard(AntiDebug::options_mutex);
         for (auto& option : options)
-            checkboxes.push_back(Checkbox(option.name, &option.enabled));
+            checkboxes.push_back(Checkbox(option.name.data(), &option.enabled));
     }
 
     auto checkbox_container{ Container::Vertical(checkboxes) };

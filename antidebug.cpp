@@ -26,7 +26,8 @@ AntiDebug::AntiDebugOptions anti_debug_options
 	ADD_ANTI_DEBUG_OPTION("NtQuerySystemInformation_DebuggerInformation", true, callbackNtQuerySystemInformation_DebuggerInformation),
 	ADD_ANTI_DEBUG_OPTION("CloseHandle", false, callbackCloseHandle),
 	ADD_ANTI_DEBUG_OPTION("DbgPrint", true, callbackDbgPrint),
-	ADD_ANTI_DEBUG_OPTION("EnumDeviceDrivers", false, callbackEnumDeviceDrivers, 250)
+	ADD_ANTI_DEBUG_OPTION("EnumDeviceDrivers", false, callbackEnumDeviceDrivers, 250),
+	ADD_ANTI_DEBUG_OPTION("CyclesPassed", false, callbackCyclesPassed)
 };
 
 //
@@ -37,7 +38,6 @@ AntiDebug::AntiDebugOptions& AntiDebug::getOptions()
 {
 	return anti_debug_options;
 }
-
 //
 // [SECTION] Functions (Callbacks)
 //
@@ -101,7 +101,9 @@ void AntiDebug::callbackFindWindowByTitle(AntiDebugOption& option)
 	for (int i{}; titles[i]; i++)
 	{
 		HWND hwnd{};
-		char windowText[256];
+
+		constexpr size_t maximumWindowNameSize = 256;
+		char windowText[maximumWindowNameSize];
 
 		while ((hwnd = FindWindowExA(nullptr, hwnd, nullptr, nullptr)) != nullptr)
 		{
@@ -131,6 +133,9 @@ void AntiDebug::callbackGetThreadContext(AntiDebugOption& option)
 {
 	CONTEXT ctx{};
 	ctx.ContextFlags = CONTEXT_DEBUG_REGISTERS;
+
+	GetThreadContext(GetCurrentThread(), &ctx); // perhaps implement some ntstatus like thing for your own functions via an enum for easier error checking
+
 	option.detected = (ctx.Dr0 != 0) || (ctx.Dr1 != 0) || (ctx.Dr2 != 0) || (ctx.Dr3 != 0) || (ctx.Dr6 != 0) || (ctx.Dr7 & 0xFF);
 }
 
@@ -174,8 +179,8 @@ void AntiDebug::callbackDbgPrint(AntiDebugOption& option)
 
 void AntiDebug::callbackEnumDeviceDrivers(AntiDebugOption& option)
 {
-	static const char* driver_names[] = 
-	{ 
+	static const char* driver_names[] =
+	{
 		"capcom.sys",     // Vulnerable signed driver historically abused to manual map drivers
 		"dbk64.sys",      // DBVM driver
 		"procexp152.sys", // Process explorer's driver
@@ -184,19 +189,19 @@ void AntiDebug::callbackEnumDeviceDrivers(AntiDebugOption& option)
 	LPVOID drivers[1024];
 	DWORD cb_required;
 
-	if (EnumDeviceDrivers(drivers, sizeof(drivers), &cb_required)) 
+	if (EnumDeviceDrivers(drivers, sizeof(drivers), &cb_required))
 	{
 		int driver_count = cb_required / sizeof(LPVOID);
 
-		for (int i{}; i < driver_count; i++) 
+		for (int i{}; i < driver_count; i++)
 		{
 			char driver_name[MAX_PATH];
 
-			if (GetDeviceDriverBaseNameA(drivers[i], driver_name, sizeof(driver_name))) 
+			if (GetDeviceDriverBaseNameA(drivers[i], driver_name, sizeof(driver_name)))
 			{
 				for (int i{}; driver_names[i]; i++)
 				{
-					if (strcmp(driver_name, driver_names[i]) == 0) 
+					if (strcmp(driver_name, driver_names[i]) == 0)
 					{
 						option.detected = true;
 						return;
@@ -205,6 +210,58 @@ void AntiDebug::callbackEnumDeviceDrivers(AntiDebugOption& option)
 			}
 		}
 	} // May the lord protect us from such sinful brackets
-	
+
 	option.detected = false;
+}
+
+void AntiDebug::callbackCyclesPassed(AntiDebugOption& option) {
+
+	static bool isDetected = false;
+	if (isDetected) return;
+
+	constexpr size_t cpuidRequiredBufferSize = 4;
+	int junkBuffer[cpuidRequiredBufferSize];
+
+	__cpuid(junkBuffer, 0);
+
+	unsigned long long t1{ __rdtsc() };
+
+	
+
+	volatile int magic1{ 69 }; // values do not matter - those can be random just for the cpu to actually compute something 
+	volatile int magic2{ 420 };
+
+	volatile int x{ magic1 };
+	volatile int y{ magic2 + x };
+
+	__cpuid(junkBuffer, 0);
+
+	unsigned long long t2{ __rdtsc() };
+
+	unsigned long long delta{ t2 - t1 };
+
+	constexpr unsigned long long maxAllowedCyclesNumber{ 60000 }; // should be determined dynamically based of number of processes etc (the load of the current pc)
+
+	
+	static int amountOfUnAllowedDeltas{};
+
+	if (delta > maxAllowedCyclesNumber)
+		++amountOfUnAllowedDeltas;
+
+	constexpr int minimalUnAllowedDeltas{ 3 };
+
+	if (amountOfUnAllowedDeltas >= minimalUnAllowedDeltas)
+	{
+		isDetected = true;
+		option.detected = true;
+	}
+	else
+		option.detected = false;
+
+	
+	// if (delta > maxAllowedCyclesNumber)
+	//	 option.detected = true;
+	// else
+	//	 option.detected = false;
+
 }
