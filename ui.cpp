@@ -65,7 +65,7 @@ void UI::routine()
             separator(),
             text("Use arrow keys to navigate, Space to toggle, Q to quit") | dim
         }) | border;
-    });
+     });
 
     component |= CatchEvent([&](Event event) {
         if (event == Event::Character('q') || event == Event::Character('Q'))
