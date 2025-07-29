@@ -3,6 +3,7 @@
 #include <vector>
 #include <mutex>
 #include <string_view>
+#include <cstdint>
 
 #include <ftxui/component/component.hpp>
 #define NOMINMAX
@@ -63,4 +64,5 @@ namespace AntiDebug
 	void callbackDbgPrint(AntiDebugOption& option);
 	void callbackEnumDeviceDrivers(AntiDebugOption& option);
 	void callbackCyclesPassed(AntiDebugOption& option);
+	void callbackIsWindowsFunctionBreakpointed(AntiDebugOption& option);
 }

@@ -27,7 +27,8 @@ AntiDebug::AntiDebugOptions anti_debug_options
 	ADD_ANTI_DEBUG_OPTION("CloseHandle", false, callbackCloseHandle),
 	ADD_ANTI_DEBUG_OPTION("DbgPrint", true, callbackDbgPrint),
 	ADD_ANTI_DEBUG_OPTION("EnumDeviceDrivers", false, callbackEnumDeviceDrivers, 250),
-	ADD_ANTI_DEBUG_OPTION("CyclesPassed", false, callbackCyclesPassed)
+	ADD_ANTI_DEBUG_OPTION("CyclesPassed", false, callbackCyclesPassed),
+	ADD_ANTI_DEBUG_OPTION("IsWindowsFunctionBreakpointed", false, callbackIsWindowsFunctionBreakpointed)
 };
 
 //
@@ -263,5 +264,83 @@ void AntiDebug::callbackCyclesPassed(AntiDebugOption& option) {
 	//	 option.detected = true;
 	// else
 	//	 option.detected = false;
+
+}
+
+void AntiDebug::callbackIsWindowsFunctionBreakpointed(AntiDebugOption& option) {
+
+	static const char* commonKernel32Functions[] =
+	{
+		"IsDebuggerPresent",
+		"EnumDeviceDrivers",
+		"CloseHandle",
+		"CheckRemoteDebuggerPresent",
+		"GetThreadContext",
+		"RaiseException",
+		"OutputDebugStringA",
+		"OutputDebugStringW",
+		"DebugBreak",
+		"CreateToolhelp32Snapshot",
+		"EnumWindows",
+		"FindWindow",
+		"GetTickCount",
+		"GetTickCount64",
+		"GetSystemTime",
+		"GetStartupInfo",
+
+		nullptr
+	};
+
+	static const char* commonNtDllFunctions[] =
+	{
+		"NtQueryInformationProcess",
+		"ZwQueryInformationProcess",
+		"NtSetInformationThread",
+
+		nullptr
+	};
+
+	constexpr std::uint8_t int3opCode = 0xCC;
+	constexpr std::uint16_t int3multiByteOpCode = 0xCD03;
+	constexpr std::uint16_t undefinedOpCode = 0x0F0B;
+
+	HMODULE kernel32Address{ GetModuleHandleA("kernel32.dll") };
+
+	for (int i{}; commonKernel32Functions[i]; i++) {
+
+		void* functionPointer{ reinterpret_cast<void*>(GetProcAddress(kernel32Address, commonKernel32Functions[i])) };
+
+		if (!functionPointer) 
+			continue;
+
+		if (*(std::uint8_t*)functionPointer == int3opCode ||
+			*(std::uint16_t*)functionPointer == int3multiByteOpCode ||
+			*(std::uint16_t*)functionPointer == undefinedOpCode)
+		{
+			option.detected = true;
+			return;
+		}
+
+	}
+
+	HMODULE ntdllAddress{ GetModuleHandleA("ntdll.dll") };
+
+	for (int i{}; commonNtDllFunctions[i]; i++) {
+
+		void* functionPointer{ reinterpret_cast<void*>(GetProcAddress(ntdllAddress, commonNtDllFunctions[i])) };
+
+
+
+		if (*(std::uint8_t*)functionPointer == int3opCode ||
+			*(std::uint16_t*)functionPointer == int3multiByteOpCode ||
+			*(std::uint16_t*)functionPointer == undefinedOpCode)
+		{
+			option.detected = true;
+			return;
+		}
+
+	}
+
+	option.detected = false;
 
 }

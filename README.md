@@ -124,6 +124,10 @@ after startup they aren't.
 
 `CyclesPassed` uses MSVC intrinsics to check if the CPU cycles delta between function's prologue and epilogue was abnormally huge. If such a thing happend more than or equal 3 times then it assumes that there was a breakpoint set inside it.
 
+### `IsWindowsFunctionBreakpointed` 
+
+`IsWindowsFunctionBreakpointed` scans for the first 1 or 2 bytes of WinAPI functions (mostly those used for anti debbuging) for software breakpoint INT3 (0xCC / 0xCD03) and undefined opcode which can be used to throw an exception (0x0F0B).
+
 ## Contributing
 
 This project is free and open source and will remain so forever. You are welcome to contribute. Simply make a pull request for whatever it is you would like to add, but

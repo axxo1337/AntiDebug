@@ -1,7 +1,5 @@
 #include <thread>
 #include <chrono>
-#include <array>
-#include <iostream>
 
 #include "ui.h"
 #include "antidebug.h"
