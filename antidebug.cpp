@@ -215,19 +215,16 @@ void AntiDebug::callbackEnumDeviceDrivers(AntiDebugOption& option)
 	option.detected = false;
 }
 
-void AntiDebug::callbackCyclesPassed(AntiDebugOption& option) {
+void AntiDebug::callbackCyclesPassed(AntiDebugOption& option) 
+{
+	if (option.detected) return;
 
-	static bool isDetected = false;
-	if (isDetected) return;
+	constexpr size_t cpuid_required_buffer_size = 4;
+	int junk_buffer[cpuid_required_buffer_size];
 
-	constexpr size_t cpuidRequiredBufferSize = 4;
-	int junkBuffer[cpuidRequiredBufferSize];
-
-	__cpuid(junkBuffer, 0);
+	__cpuid(junk_buffer, 0);
 
 	unsigned long long t1{ __rdtsc() };
-
-	
 
 	volatile int magic1{ 69 }; // values do not matter - those can be random just for the cpu to actually compute something 
 	volatile int magic2{ 420 };
@@ -235,40 +232,32 @@ void AntiDebug::callbackCyclesPassed(AntiDebugOption& option) {
 	volatile int x{ magic1 };
 	volatile int y{ magic2 + x };
 
-	__cpuid(junkBuffer, 0);
+	__cpuid(junk_buffer, 0);
 
 	unsigned long long t2{ __rdtsc() };
-
 	unsigned long long delta{ t2 - t1 };
-
-	constexpr unsigned long long maxAllowedCyclesNumber{ 60000 }; // should be determined dynamically based of number of processes etc (the load of the current pc)
-
+	constexpr unsigned long long max_allowed_cycles_number{ 60000 }; // should be determined dynamically based of number of processes etc (the load of the current pc)
 	
-	static int amountOfUnAllowedDeltas{};
+	static int amount_of_unallowed_deltas{};
 
-	if (delta > maxAllowedCyclesNumber)
-		++amountOfUnAllowedDeltas;
+	if (delta > max_allowed_cycles_number)
+		++amount_of_unallowed_deltas;
 
 	constexpr int minimalUnAllowedDeltas{ 3 };
 
-	if (amountOfUnAllowedDeltas >= minimalUnAllowedDeltas)
-	{
-		isDetected = true;
+	if (amount_of_unallowed_deltas >= minimalUnAllowedDeltas)
 		option.detected = true;
-	}
 	else
 		option.detected = false;
 
-	
 	// if (delta > maxAllowedCyclesNumber)
 	//	 option.detected = true;
 	// else
 	//	 option.detected = false;
-
 }
 
-void AntiDebug::callbackIsWindowsFunctionBreakpointed(AntiDebugOption& option) {
-
+void AntiDebug::callbackIsWindowsFunctionBreakpointed(AntiDebugOption& option) 
+{
 	static const char* commonKernel32Functions[] =
 	{
 		"IsDebuggerPresent",
@@ -287,7 +276,6 @@ void AntiDebug::callbackIsWindowsFunctionBreakpointed(AntiDebugOption& option) {
 		"GetTickCount64",
 		"GetSystemTime",
 		"GetStartupInfo",
-
 		nullptr
 	};
 
@@ -296,51 +284,45 @@ void AntiDebug::callbackIsWindowsFunctionBreakpointed(AntiDebugOption& option) {
 		"NtQueryInformationProcess",
 		"ZwQueryInformationProcess",
 		"NtSetInformationThread",
-
 		nullptr
 	};
 
-	constexpr std::uint8_t int3opCode = 0xCC;
-	constexpr std::uint16_t int3multiByteOpCode = 0xCD03;
-	constexpr std::uint16_t undefinedOpCode = 0x0F0B;
+	static HMODULE kernel32_address{ GetModuleHandleA("kernel32.dll") };
+	static HMODULE ntdll_address{ GetModuleHandleA("ntdll.dll") };
 
-	HMODULE kernel32Address{ GetModuleHandleA("kernel32.dll") };
+	constexpr std::uint8_t int3opcode = 0xCC;
+	constexpr std::uint16_t int3multi_byte_opcode = 0xCD03;
+	constexpr std::uint16_t undefined_opcode = 0x0F0B;
+
 
 	for (int i{}; commonKernel32Functions[i]; i++) {
 
-		void* functionPointer{ reinterpret_cast<void*>(GetProcAddress(kernel32Address, commonKernel32Functions[i])) };
+		void* functionPointer{ reinterpret_cast<void*>(GetProcAddress(kernel32_address, commonKernel32Functions[i])) };
 
 		if (!functionPointer) 
 			continue;
 
-		if (*(std::uint8_t*)functionPointer == int3opCode ||
-			*(std::uint16_t*)functionPointer == int3multiByteOpCode ||
-			*(std::uint16_t*)functionPointer == undefinedOpCode)
+		if (*(std::uint8_t*)functionPointer == int3opcode ||
+			*(std::uint16_t*)functionPointer == int3multi_byte_opcode ||
+			*(std::uint16_t*)functionPointer == undefined_opcode)
 		{
 			option.detected = true;
 			return;
 		}
-
 	}
-
-	HMODULE ntdllAddress{ GetModuleHandleA("ntdll.dll") };
 
 	for (int i{}; commonNtDllFunctions[i]; i++) {
 
-		void* functionPointer{ reinterpret_cast<void*>(GetProcAddress(ntdllAddress, commonNtDllFunctions[i])) };
+		void* function_pointer{ reinterpret_cast<void*>(GetProcAddress(ntdll_address, commonNtDllFunctions[i])) };
 
-
-
-		if (*(std::uint8_t*)functionPointer == int3opCode ||
-			*(std::uint16_t*)functionPointer == int3multiByteOpCode ||
-			*(std::uint16_t*)functionPointer == undefinedOpCode)
+		if (*(std::uint8_t*)function_pointer == int3opcode ||
+			*(std::uint16_t*)function_pointer == int3multi_byte_opcode ||
+			*(std::uint16_t*)function_pointer == undefined_opcode)
 		{
 			option.detected = true;
 			return;
 		}
-
 	}
 
 	option.detected = false;
-
 }
