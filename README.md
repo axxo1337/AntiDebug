@@ -45,8 +45,7 @@ also specify a fourth argument for the delay in milliseconds to wait after execu
 
 ## Documentation
 
-In this section I will do my best to document the different anti-debugging techniques used, and maybe add extra details like how they can be avoided etc. For any further
-information please join [our Discord server](https://discord.gg/f6AbaCATMg).
+In this section I will do my best to document the different anti-debugging techniques used, and maybe add extra details like how they can be avoided etc.
 
 ### `IsDebuggerPresent`
 
