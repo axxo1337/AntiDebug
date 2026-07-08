@@ -1,3 +1,4 @@
+#include <intrin.h>
 #include "antidebug.h"
 #include "winstructs.h"
 
@@ -148,7 +149,7 @@ void AntiDebug::callbackNtQuerySystemInformation_DebuggerInformation(AntiDebugOp
 	ULONG len;
 	NtQuerySystemInformation((SYSTEM_INFORMATION_CLASS)0x95, &debugger_info, sizeof(debugger_info), &len);
 
-	// This is when detection descriptions would be useful: https://github.com/haxo-games/AntiDebug/issues/7
+	// This is when detection descriptions would be useful: https://github.com/axxo1337/AntiDebug/issues/7
 	option.detected = debugger_info.DebuggerEnabled || debugger_info.DebuggerPresent;
 }
 
@@ -200,9 +201,9 @@ void AntiDebug::callbackEnumDeviceDrivers(AntiDebugOption& option)
 
 			if (GetDeviceDriverBaseNameA(drivers[i], driver_name, sizeof(driver_name)))
 			{
-				for (int i{}; driver_names[i]; i++)
+				for (const char* target_driver : driver_names)
 				{
-					if (strcmp(driver_name, driver_names[i]) == 0)
+					if (strcmp(driver_name, target_driver) == 0)
 					{
 						option.detected = true;
 						return;
@@ -218,6 +219,12 @@ void AntiDebug::callbackEnumDeviceDrivers(AntiDebugOption& option)
 void AntiDebug::callbackCyclesPassed(AntiDebugOption& option) 
 {
 	if (option.detected) return;
+
+	constexpr int minimalUnAllowedDeltas{ 3 };
+	static int amount_of_unallowed_deltas{};
+
+	if (amount_of_unallowed_deltas >= minimalUnAllowedDeltas)
+		amount_of_unallowed_deltas = 0;
 
 	constexpr size_t cpuid_required_buffer_size = 4;
 	int junk_buffer[cpuid_required_buffer_size];
@@ -237,8 +244,6 @@ void AntiDebug::callbackCyclesPassed(AntiDebugOption& option)
 	unsigned long long t2{ __rdtsc() };
 	unsigned long long delta{ t2 - t1 };
 	constexpr unsigned long long max_allowed_cycles_number{ 60000 }; // should be determined dynamically based of number of processes etc (the load of the current pc)
-	
-	static int amount_of_unallowed_deltas{};
 
 	if (delta > max_allowed_cycles_number)
 		++amount_of_unallowed_deltas;
@@ -314,6 +319,9 @@ void AntiDebug::callbackIsWindowsFunctionBreakpointed(AntiDebugOption& option)
 	for (int i{}; commonNtDllFunctions[i]; i++) {
 
 		void* function_pointer{ reinterpret_cast<void*>(GetProcAddress(ntdll_address, commonNtDllFunctions[i])) };
+
+		if (!function_pointer)
+			continue;
 
 		if (*(std::uint8_t*)function_pointer == int3opcode ||
 			*(std::uint16_t*)function_pointer == int3multi_byte_opcode ||

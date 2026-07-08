@@ -1,4 +1,5 @@
 #include <mutex>
+#include <atomic>
 
 #include "ui.h"
 
@@ -6,7 +7,7 @@
 // [SECTION] Variables
 //
 
-static ftxui::ScreenInteractive* p_screen{};
+static std::atomic<ftxui::ScreenInteractive*> p_screen{ nullptr };
 
 //
 // [SECTION] Functions
@@ -26,7 +27,7 @@ void UI::routine()
     {
         std::lock_guard<std::mutex> guard(AntiDebug::options_mutex);
         for (auto& option : options)
-            checkboxes.push_back(Checkbox(option.name.data(), &option.enabled));
+            checkboxes.push_back(Checkbox(std::string(option.name), &option.enabled));
     }
 
     auto checkbox_container{ Container::Vertical(checkboxes) };
@@ -58,7 +59,7 @@ void UI::routine()
             detection_text += "not detected.";
 
         return vbox({
-            text("AntiDebug - Haxo Games Inc.") | bold | center,
+            text("AntiDebug - axxo1337") | bold | center,
             text(detection_text) | (is_detected ? color(Color::Red) : color(Color::Green)) | center,
             separator(),
             vbox(checkbox_elements) | flex | vscroll_indicator | frame,
@@ -79,10 +80,12 @@ void UI::routine()
     });
 
     screen.Loop(component);
+    p_screen = nullptr;
 }
 
 void UI::triggerUpdate()
 {
-    if (p_screen != nullptr)
-        p_screen->PostEvent(ftxui::Event::Custom);
+    auto screen_ptr = p_screen.load();
+    if (screen_ptr != nullptr)
+        screen_ptr->PostEvent(ftxui::Event::Custom);
 }

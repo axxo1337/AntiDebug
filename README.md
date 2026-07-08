@@ -2,7 +2,7 @@
 
 ## What is this?
 
-A simple terminal interface tool to test Windows x86_64 anti-debugging techniques. This was made for a now retired project known as Haxo Games. I moved this repository to my personal profile because the organization was made read-only.
+A simple terminal interface tool to test Windows x86_64 anti-debugging techniques. This was made for a now retired project known as axxo1337. I moved this repository to my personal profile because the organization was made read-only.
 
 ## Build
 
